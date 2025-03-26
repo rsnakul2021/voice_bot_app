@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .recording {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-center mb-8">Hey I am Nakul, ask me anything</h1>
+            
+            <div class="flex flex-col items-center space-y-6">
+                <button id="recordButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-xl focus:outline-none">
+                    Click to Record
+                </button>
+                
+                <div id="status" class="text-gray-600 text-lg"></div>
+                
+                <div class="w-full space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h2 class="font-semibold mb-2">You said:</h2>
+                        <p id="userText" class="text-gray-700"></p>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h2 class="font-semibold mb-2">Response:</h2>
+                        <p id="responseText" class="text-gray-700"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const recordButton = document.getElementById('recordButton');
+        const status = document.getElementById('status');
+        const userText = document.getElementById('userText');
+        const responseText = document.getElementById('responseText');
+
+        // Initialize speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+            recordButton.textContent = 'Listening... Click to Stop';
+            recordButton.classList.add('recording', 'bg-red-500', 'hover:bg-red-600');
+            status.textContent = 'Listening...';
+        };
+
+        recognition.onend = () => {
+            recordButton.textContent = 'Click to Record';
+            recordButton.classList.remove('recording', 'bg-red-500', 'hover:bg-red-600');
+            recordButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            status.textContent = '';
+        };
+
+        recognition.onresult = async (event) => {
+            const text = event.results[0][0].transcript;
+            userText.textContent = text;
+            status.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/process-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    responseText.textContent = data.response;
+                    
+                    // Play audio response
+                    const audio = new Audio('data:audio/wav;base64,' + data.audio);
+                    await audio.play();
+                    
+                    status.textContent = '';
+                } else {
+                    status.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                status.textContent = 'Error processing request';
+                console.error(error);
+            }
+        };
+
+        recognition.onerror = (event) => {
+            status.textContent = 'Error: ' + event.error;
+            recordButton.textContent = 'Click to Record';
+            recordButton.classList.remove('recording', 'bg-red-500', 'hover:bg-red-600');
+            recordButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+        };
+
+        let isRecording = false;
+
+        recordButton.addEventListener('click', () => {
+            if (!isRecording) {
+                recognition.start();
+                isRecording = true;
+            } else {
+                recognition.stop();
+                isRecording = false;
+            }
+        });
+    </script>
+</body>
+</html> 
