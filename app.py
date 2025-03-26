@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS  # Add this import
 import openai
 from dotenv import load_dotenv
 import os
@@ -7,6 +8,7 @@ import base64
 import io
 
 app = Flask(__name__)
+CORS(app)
 
 # Load environment variables
 load_dotenv()
