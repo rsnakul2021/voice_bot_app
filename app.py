@@ -1,9 +1,9 @@
 from flask import Flask, render_template, request, jsonify
-from flask_cors import CORS  # Add this import
+from flask_cors import CORS
 import openai
 from dotenv import load_dotenv
 import os
-import pyttsx3
+from gtts import gTTS
 import base64
 import io
 
@@ -34,7 +34,7 @@ def index():
 @app.route('/process-text', methods=['POST'])
 def process_text():
     try:
-        # Get text directly from the request
+        # Get text from the request
         data = request.get_json()
         text = data.get('text', '')
 
@@ -47,35 +47,26 @@ def process_text():
         response_text = response.choices[0].message.content
         conversation_history.append({"role": "assistant", "content": response_text})
 
-        # Convert response to speech
-        engine = pyttsx3.init()
-        engine.setProperty('rate', 150)
-        engine.setProperty('volume', 0.9)
-        
-        # Save speech to a temporary file
-        speech_file = "temp_speech.wav"
-        engine.save_to_file(response_text, speech_file)
-        engine.runAndWait()
-
-        # Read the audio file and convert to base64
-        with open(speech_file, 'rb') as f:
-            audio_data = base64.b64encode(f.read()).decode()
-
-        # Clean up temporary file
-        os.remove(speech_file)
+        # Convert response to speech using gTTS
+        tts = gTTS(text=response_text, lang='en')
+        audio_io = io.BytesIO()
+        tts.write_to_fp(audio_io)
+        audio_data = base64.b64encode(audio_io.getvalue()).decode()
 
         return jsonify({
             'success': True,
             'text': text,
             'response': response_text,
-            'audio': audio_data
+            'audio': audio_data,
+            'audio_type': 'audio/mp3'  # gTTS produces MP3 files
         })
 
     except Exception as e:
+        print(f"Error: {str(e)}")  # For debugging
         return jsonify({
             'success': False,
             'error': str(e)
         })
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, port=5001)  # Using different port from original app
