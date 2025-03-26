@@ -42,6 +42,20 @@
     </div>
 
     <script>
+        // Add this check at the start of your script
+        if (!window.isSecureContext) {
+            status.textContent = 'Speech recognition requires HTTPS. Please access this site via HTTPS.';
+            recordButton.disabled = true;
+            recordButton.classList.add('opacity-50');
+        }
+
+        // Add this check for browser compatibility
+        if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+            status.textContent = 'Speech recognition is not supported in this browser. Please try Chrome or Edge.';
+            recordButton.disabled = true;
+            recordButton.classList.add('opacity-50');
+        }
+
         const recordButton = document.getElementById('recordButton');
         const status = document.getElementById('status');
         const userText = document.getElementById('userText');
@@ -100,21 +114,35 @@
         };
 
         recognition.onerror = (event) => {
-            status.textContent = 'Error: ' + event.error;
+            console.error('Speech recognition error:', event.error);
+            status.textContent = 'Error: ' + event.error + '. Try refreshing the page.';
             recordButton.textContent = 'Click to Record';
             recordButton.classList.remove('recording', 'bg-red-500', 'hover:bg-red-600');
             recordButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            isRecording = false;
         };
 
         let isRecording = false;
 
-        recordButton.addEventListener('click', () => {
-            if (!isRecording) {
-                recognition.start();
-                isRecording = true;
-            } else {
-                recognition.stop();
-                isRecording = false;
+        recordButton.addEventListener('click', async () => {
+            if (!apiKeyInput.value) {
+                status.textContent = 'Please enter your OpenAI API key first';
+                return;
+            }
+
+            // Add permission check
+            try {
+                const permission = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (!isRecording) {
+                    recognition.start();
+                    isRecording = true;
+                } else {
+                    recognition.stop();
+                    isRecording = false;
+                }
+            } catch (error) {
+                status.textContent = 'Microphone access denied. Please allow microphone access and try again.';
+                console.error('Microphone error:', error);
             }
         });
     </script>
